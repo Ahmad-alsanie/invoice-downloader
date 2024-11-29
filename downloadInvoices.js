@@ -27,11 +27,11 @@ puppeteer.use(StealthPlugin());
     );
 
     try {
-        // Navigate to ChatGPT homepage
+        // Step 1: Navigate to ChatGPT homepage
         await page.goto('https://chatgpt.com', { waitUntil: 'networkidle2' });
         console.log('Navigated to ChatGPT homepage.');
 
-        // Click the "Log in" button using page.evaluate()
+        // Step 2: Click the "Log in" button
         await page.evaluate(() => {
             const loginButton = Array.from(document.querySelectorAll('div.flex.items-center.justify-center'))
                 .find((el) => el.textContent.trim() === 'Log in');
@@ -43,22 +43,22 @@ puppeteer.use(StealthPlugin());
         });
         console.log('Clicked Log in button.');
 
-        // Wait for navigation to the login page
+        // Step 3: Wait for navigation to login page
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-        // Fill in the email field
+        // Step 4: Enter email
         await page.waitForSelector('#email-input', { timeout: 60000 });
         console.log('Email input field found.');
-        await page.type('#email-input', 'youremail', { delay: 100 });
+        await page.type('#email-input', 'ahmad.alsanie@hotmail.com', { delay: 100 });
         await page.click('.continue-btn');
         console.log('Email entered and Continue clicked.');
 
-        // Fill in the password field
+        // Step 5: Enter password
         await page.waitForSelector('#password', { timeout: 60000 });
         console.log('Password input field found.');
-        await page.type('#password', 'yourpass', { delay: 100 });
+        await page.type('#password', 'ChatGPT101**', { delay: 100 });
 
-        // Submit the login form
+        // Step 6: Submit login form
         await page.evaluate(() => {
             const buttons = document.querySelectorAll('button[type="submit"]');
             buttons.forEach((button) => {
@@ -69,15 +69,15 @@ puppeteer.use(StealthPlugin());
         });
         console.log('Login form submitted.');
 
-        // Wait for the navigation to complete
+        // Step 7: Wait for the navigation to complete
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         console.log('Logged in successfully.');
 
-        // Navigate to pricing page
+        // Step 8: Navigate to pricing page
         await page.goto('https://chatgpt.com/#pricing', { waitUntil: 'networkidle2' });
         console.log('Navigated to Pricing page.');
 
-        // Wait and click the "Manage my subscription" link
+        // Step 9: Click "Manage my subscription" link
         const manageSubscriptionSelector = 'a.px-2.underline';
         await page.waitForSelector(manageSubscriptionSelector, { timeout: 90000 });
         const manageSubscriptionElement = (await page.$$(manageSubscriptionSelector))[0];
@@ -89,37 +89,26 @@ puppeteer.use(StealthPlugin());
             throw new Error('Manage my subscription link not found');
         }
 
-        // Load all invoices
-        let viewMoreButton;
-        try {
-            while ((viewMoreButton = await page.$('button:contains("View more")'))) {
-                await viewMoreButton.click();
-                await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for the invoices to load
-            }
-        } catch (e) {
-            console.log('All invoices loaded or no more "View more" button available.');
-        }
+        // Step 10: Load and extract invoice links
+        const invoiceLinks = await page.evaluate(() => {
+            return Array.from(document.querySelectorAll('a[data-testid="hip-link"]'))
+                .map(a => a.href);
+        });
 
-        // Download all invoices
-        const invoices = await page.$$('a[href*="invoice"]');
-        console.log(`Found ${invoices.length} invoice links.`);
+        console.log(`Found ${invoiceLinks.length} invoices.`);
 
-        for (const [index, invoice] of invoices.entries()) {
+        // Step 11: Download all invoices
+        for (const [index, link] of invoiceLinks.entries()) {
             try {
-                const href = await (await invoice.getProperty('href')).jsonValue();
-                console.log(`Invoice ${index + 1}: Found link - ${href}`);
-
-                const fileName = href.split('/').pop().split('?')[0]; // Remove query params
-                console.log(`Invoice ${index + 1}: Extracted file name - ${fileName}`);
-
-                const viewSource = await page.goto(href, { waitUntil: 'networkidle2' });
-                console.log(`Invoice ${index + 1}: Downloading...`);
+                console.log(`Invoice ${index + 1}: Downloading from ${link}`);
+                const viewSource = await page.goto(link, { waitUntil: 'networkidle2' });
 
                 if (!viewSource || viewSource.status() !== 200) {
-                    console.error(`Invoice ${index + 1}: Failed to fetch the invoice.`);
+                    console.error(`Invoice ${index + 1}: Failed to fetch.`);
                     continue;
                 }
 
+                const fileName = `invoice_${index + 1}.pdf`; // Default naming convention
                 const filePath = path.join(invoicesDir, fileName);
                 fs.writeFileSync(filePath, await viewSource.buffer());
                 console.log(`Invoice ${index + 1}: Saved to ${filePath}`);
