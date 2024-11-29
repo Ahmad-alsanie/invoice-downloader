@@ -31,15 +31,6 @@ puppeteer.use(StealthPlugin());
         await page.goto('https://chatgpt.com', { waitUntil: 'networkidle2' });
         console.log('Navigated to ChatGPT homepage.');
 
-        await page.evaluate(() => {
-            const loginButton = Array.from(document.querySelectorAll('div.flex.items-center.justify-center'))
-                .find((el) => el.textContent.trim() === 'Log in');
-            if (loginButton) loginButton.click();
-        });
-        console.log('Clicked Log in button.');
-
-        await page.waitForNavigation({ waitUntil: 'networkidle2' });
-
         // Step 2: Click "Continue with Google"
         await page.waitForSelector('span.social-text');
         await page.evaluate(() => {
@@ -76,7 +67,7 @@ puppeteer.use(StealthPlugin());
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         console.log('Logged in with Google successfully.');
 
-        // Continue with the rest of the script for invoice download
+        // Step 7: Continue to invoice downloading steps
         await page.goto('https://chatgpt.com/#pricing', { waitUntil: 'networkidle2' });
         console.log('Navigated to Pricing page.');
 
