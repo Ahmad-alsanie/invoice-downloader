@@ -7,126 +7,117 @@ const path = require('path');
 puppeteer.use(StealthPlugin());
 
 (async () => {
-    // Launch Puppeteer with headless mode off and additional configurations
+    const invoicesDir = path.join(__dirname, 'invoices');
+
+    // Create the invoices directory if it doesn't exist
+    if (!fs.existsSync(invoicesDir)) {
+        fs.mkdirSync(invoicesDir, { recursive: true });
+        console.log(`Created directory: ${invoicesDir}`);
+    }
+
     const browser = await puppeteer.launch({
-        headless: false,  // Set to false to see the browser
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Specify Chrome executable path
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-blink-features=AutomationControlled',  // Disable features to reduce bot detection
-            '--window-size=1200,800'
-        ]
+        headless: false,
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1200,800'],
     });
 
     const page = await browser.newPage();
-
-    // Set a typical User-Agent string to appear as a regular browser
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-
-    // Block unnecessary requests like images to speed up the script and reduce bot detection
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-        if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
-            req.abort();
-        } else {
-            req.continue();
-        }
-    });
+    await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    );
 
     try {
-        // Navigate to the login page
-        await page.goto('https://platform.openai.com/login', { waitUntil: 'networkidle2' });
+        // Step 1: Log in to ChatGPT website
+        await page.goto('https://chatgpt.com', { waitUntil: 'networkidle2' });
+        console.log('Navigated to ChatGPT homepage.');
 
-        // Human-like pause to simulate thinking time
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await page.evaluate(() => {
+            const loginButton = Array.from(document.querySelectorAll('div.flex.items-center.justify-center'))
+                .find((el) => el.textContent.trim() === 'Log in');
+            if (loginButton) loginButton.click();
+        });
+        console.log('Clicked Log in button.');
 
-        // Move the mouse around to make it look more human-like
-        await page.mouse.move(100, 100, { steps: 10 });
-        await page.mouse.move(300, 200, { steps: 20 });
-
-        // Wait for the email input to be visible and fill it with typing delays
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
         await page.waitForSelector('#email-input', { timeout: 60000 });
-        console.log('Found email input field.');
-
-        await page.type('#email-input', 'yourmail', { delay: 100 }); // Simulate typing with delay
-
-        // Human-like pause before clicking the button
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Click the "Continue" button to proceed to the password step
+        console.log('Email input field found.');
+        await page.type('#email-input', 'your email', { delay: 100 });
         await page.click('.continue-btn');
+        console.log('Email entered and Continue clicked.');
 
-        // Wait for the password field to be visible and fill it
         await page.waitForSelector('#password', { timeout: 60000 });
-        console.log('Found password input field.');
+        console.log('Password input field found.');
+        await page.type('#password', 'yourPass', { delay: 100 });
 
-        // Type password with a delay
-        await page.type('#password', 'yourpass', { delay: 100 });
-
-
-        // Human-like pause before clicking the submit button
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // Click the "Submit" button using a more robust selector
         await page.evaluate(() => {
             const buttons = document.querySelectorAll('button[type="submit"]');
-            buttons.forEach(button => {
+            buttons.forEach((button) => {
                 if (button.innerText.trim() === 'Continue') {
                     button.click();
                 }
             });
         });
+        console.log('Login form submitted.');
 
-        // Wait for navigation to complete
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        console.log('Login successful. Navigating to pricing.');
+        console.log('Logged in successfully.');
 
-        // Navigate to the pricing page
-        await page.setJavaScriptEnabled(true);
-        await page.goto('https://platform.openai.com/pricing', { waitUntil: 'networkidle2' });
+        // Step 2: Navigate to pricing page
+        await page.goto('https://chatgpt.com/#pricing', { waitUntil: 'networkidle2' });
+        console.log('Navigated to Pricing page.');
 
-        // Introduce a manual pause to ensure everything is loaded
-        console.log('Pausing for 10 seconds to ensure the page loads fully...');
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Pause for 10 seconds
+        // Step 3: Wait and click "Manage my subscription"
+        const manageSubscriptionSelector = 'a.px-2.underline';
+        await page.waitForSelector(manageSubscriptionSelector, { timeout: 90000 });
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Add delay to ensure full rendering
+        console.log('Manage my subscription link found. Clicking...');
+        await page.click(manageSubscriptionSelector);
 
-        // Wait explicitly for the "Manage my subscription" link using XPath
-        const manageSubscriptionSelector = "a.px-2.underline";
-        await page.waitForSelector(manageSubscriptionSelector, { timeout: 60000 });
+        // Step 4: Wait for invoices to load
+        console.log('Waiting for subscription management page to load...');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        const invoiceLinks = await page.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a[data-testid="hip-link"]'));
+            return links.map(link => link.href);
+        });
 
-        // Click the link using XPath
-        const manageSubscriptionElement = await page.$(manageSubscriptionSelector);
-        if (manageSubscriptionLink) {
-            console.log('Found the "Manage my subscription" link.');
-            await manageSubscriptionElement.click();
-            console.log('Clicked the "Manage my subscription" link.');
-            await page.setJavaScriptEnabled(false);
-        } else {
-            throw new Error('Manage my subscription link not found');
+        if (invoiceLinks.length === 0) {
+            console.error('No invoices found.');
+            return;
         }
 
-        // Scroll and click "View more" until all invoices are loaded
-        let viewMoreButton;
-        try {
-            while ((viewMoreButton = await page.$('button:contains("View more")'))) {
-                await viewMoreButton.click();
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for the invoices to load
+        console.log(`Found ${invoiceLinks.length} invoices.`);
+
+        // Step 5: Process each invoice
+        for (const [index, link] of invoiceLinks.entries()) {
+            try {
+                console.log(`Invoice ${index + 1}: Navigating to ${link}`);
+                await page.goto(link, { waitUntil: 'networkidle2' });
+
+                // Wait for the "Download invoice" button
+                const downloadButtonSelector = 'div.flex-container.justify-content-center.align-items-center span.Text';
+                await page.waitForSelector(downloadButtonSelector, { timeout: 60000 });
+                console.log(`Invoice ${index + 1}: Found Download button.`);
+
+                // Click the download button
+                const downloadUrl = await page.evaluate((selector) => {
+                    const button = document.querySelector(selector);
+                    if (button) {
+                        button.click();
+                        return button.innerText; // Optional: Return file name if available
+                    }
+                }, downloadButtonSelector);
+
+                // Wait a short time for the download to complete
+                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                console.log(`Invoice ${index + 1}: Successfully clicked download button.`);
+            } catch (error) {
+                console.error(`Invoice ${index + 1}: Error processing -`, error);
             }
-        } catch (e) {
-            console.log('All invoices loaded or no more "View more" button available.');
         }
 
-        // Download all invoices
-        const invoices = await page.$$('a[href*="invoice"]');
-        for (const invoice of invoices) {
-            const href = await (await invoice.getProperty('href')).jsonValue();
-            const fileName = href.split('/').pop();
-            const viewSource = await page.goto(href);
-            fs.writeFileSync(path.join(__dirname, 'invoices', fileName), await viewSource.buffer());
-        }
-
-        console.log('Invoices downloaded successfully.');
-
+        console.log('All invoices processed successfully.');
     } catch (e) {
         console.error('An error occurred:', e);
     } finally {
