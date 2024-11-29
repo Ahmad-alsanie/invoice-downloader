@@ -43,7 +43,7 @@ puppeteer.use(StealthPlugin());
         await page.keyboard.press('Backspace');
 
         // Type the email with moderate delay
-        await page.type(emailFieldSelector, '**yourmail', { delay: 1000 }); // Replace with your email
+        await page.type(emailFieldSelector, '**yourEmail', { delay: 1000 }); // Replace with your email
         console.log('Entered email.');
 
         // Step 4: Press "Continue" button
@@ -87,12 +87,13 @@ puppeteer.use(StealthPlugin());
         }, manageFinanceSelector);
         console.log('Clicked Manage finances.');
 
-        // Step 8: Press "Transactions and invoices"
-        const transactionsInvoicesSelector = 'a[data-cy="menu-item-trigger"]';
-        await page.waitForSelector(transactionsInvoicesSelector, { timeout: 60000, visible: true });
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Add a delay to ensure any transitions are complete
-        await page.evaluate((selector) => document.querySelector(selector).click(), transactionsInvoicesSelector);
-        console.log('Navigated to Transactions and invoices.');
+        // Step 8: Select 'Transactions & Invoices' from dropdown
+        await page.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll('a'));
+            const element = elements.find(el => el.textContent.trim() === 'Transactions & Invoices');
+            if (element) element.click();
+        });
+        console.log('Selected Transactions & Invoices from dropdown.');
 
         // Step 9: Press "Download invoices"
         const downloadInvoicesSelector = 'button[data-qa="download-invoices"]';
