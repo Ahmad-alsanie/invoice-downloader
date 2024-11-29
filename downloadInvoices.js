@@ -27,38 +27,28 @@ puppeteer.use(StealthPlugin());
     );
 
     try {
-        // Step 1: Navigate to ChatGPT homepage
+        // Step 1: Log in to ChatGPT website
         await page.goto('https://chatgpt.com', { waitUntil: 'networkidle2' });
         console.log('Navigated to ChatGPT homepage.');
 
-        // Step 2: Click the "Log in" button
         await page.evaluate(() => {
             const loginButton = Array.from(document.querySelectorAll('div.flex.items-center.justify-center'))
                 .find((el) => el.textContent.trim() === 'Log in');
-            if (loginButton) {
-                loginButton.click();
-            } else {
-                throw new Error('Log in button not found');
-            }
+            if (loginButton) loginButton.click();
         });
         console.log('Clicked Log in button.');
 
-        // Step 3: Wait for navigation to login page
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
-
-        // Step 4: Enter email
         await page.waitForSelector('#email-input', { timeout: 60000 });
         console.log('Email input field found.');
-        await page.type('#email-input', 'ahmad.alsanie@hotmail.com', { delay: 100 });
+        await page.type('#email-input', 'your email', { delay: 100 });
         await page.click('.continue-btn');
         console.log('Email entered and Continue clicked.');
 
-        // Step 5: Enter password
         await page.waitForSelector('#password', { timeout: 60000 });
         console.log('Password input field found.');
-        await page.type('#password', 'ChatGPT101**', { delay: 100 });
+        await page.type('#password', 'yourPass', { delay: 100 });
 
-        // Step 6: Submit login form
         await page.evaluate(() => {
             const buttons = document.querySelectorAll('button[type="submit"]');
             buttons.forEach((button) => {
@@ -69,55 +59,65 @@ puppeteer.use(StealthPlugin());
         });
         console.log('Login form submitted.');
 
-        // Step 7: Wait for the navigation to complete
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         console.log('Logged in successfully.');
 
-        // Step 8: Navigate to pricing page
+        // Step 2: Navigate to pricing page
         await page.goto('https://chatgpt.com/#pricing', { waitUntil: 'networkidle2' });
         console.log('Navigated to Pricing page.');
 
-        // Step 9: Click "Manage my subscription" link
+        // Step 3: Wait and click "Manage my subscription"
         const manageSubscriptionSelector = 'a.px-2.underline';
         await page.waitForSelector(manageSubscriptionSelector, { timeout: 90000 });
-        const manageSubscriptionElement = (await page.$$(manageSubscriptionSelector))[0];
-        if (manageSubscriptionElement) {
-            await manageSubscriptionElement.click();
-            await page.waitForNavigation({ waitUntil: 'networkidle2' });
-            console.log('Navigated to subscription management page.');
-        } else {
-            throw new Error('Manage my subscription link not found');
-        }
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Add delay to ensure full rendering
+        console.log('Manage my subscription link found. Clicking...');
+        await page.click(manageSubscriptionSelector);
 
-        // Step 10: Load and extract invoice links
+        // Step 4: Wait for invoices to load
+        console.log('Waiting for subscription management page to load...');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
         const invoiceLinks = await page.evaluate(() => {
-            return Array.from(document.querySelectorAll('a[data-testid="hip-link"]'))
-                .map(a => a.href);
+            const links = Array.from(document.querySelectorAll('a[data-testid="hip-link"]'));
+            return links.map(link => link.href);
         });
+
+        if (invoiceLinks.length === 0) {
+            console.error('No invoices found.');
+            return;
+        }
 
         console.log(`Found ${invoiceLinks.length} invoices.`);
 
-        // Step 11: Download all invoices
+        // Step 5: Process each invoice
         for (const [index, link] of invoiceLinks.entries()) {
             try {
-                console.log(`Invoice ${index + 1}: Downloading from ${link}`);
-                const viewSource = await page.goto(link, { waitUntil: 'networkidle2' });
+                console.log(`Invoice ${index + 1}: Navigating to ${link}`);
+                await page.goto(link, { waitUntil: 'networkidle2' });
 
-                if (!viewSource || viewSource.status() !== 200) {
-                    console.error(`Invoice ${index + 1}: Failed to fetch.`);
-                    continue;
-                }
+                // Wait for the "Download invoice" button
+                const downloadButtonSelector = 'div.flex-container.justify-content-center.align-items-center span.Text';
+                await page.waitForSelector(downloadButtonSelector, { timeout: 60000 });
+                console.log(`Invoice ${index + 1}: Found Download button.`);
 
-                const fileName = `invoice_${index + 1}.pdf`; // Default naming convention
-                const filePath = path.join(invoicesDir, fileName);
-                fs.writeFileSync(filePath, await viewSource.buffer());
-                console.log(`Invoice ${index + 1}: Saved to ${filePath}`);
-            } catch (downloadError) {
-                console.error(`Invoice ${index + 1}: Error downloading -`, downloadError);
+                // Click the download button
+                const downloadUrl = await page.evaluate((selector) => {
+                    const button = document.querySelector(selector);
+                    if (button) {
+                        button.click();
+                        return button.innerText; // Optional: Return file name if available
+                    }
+                }, downloadButtonSelector);
+
+                // Wait a short time for the download to complete
+                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                console.log(`Invoice ${index + 1}: Successfully clicked download button.`);
+            } catch (error) {
+                console.error(`Invoice ${index + 1}: Error processing -`, error);
             }
         }
 
-        console.log('Invoices downloaded successfully.');
+        console.log('All invoices processed successfully.');
     } catch (e) {
         console.error('An error occurred:', e);
     } finally {
