@@ -30,11 +30,14 @@ puppeteer.use(StealthPlugin());
         await page.click(loginButtonSelector);
         console.log('Clicked Log in button.');
 
-        // Step 3: Fill in email
+        // Step 3: Scroll to the top, focus, and fill in email
+        await page.evaluate(() => window.scrollTo(0, 0)); // Scroll to the top
+        console.log('Scrolled to the top.');
+
         const emailFieldSelector = '#login_username';
         await page.waitForSelector(emailFieldSelector, { timeout: 60000, visible: true });
 
-        // Ensure the email input field is in the viewport
+        // Ensure the email input field is in the viewport and focused
         await page.evaluate((selector) => {
             const element = document.querySelector(selector);
             if (element) {
@@ -43,7 +46,7 @@ puppeteer.use(StealthPlugin());
             }
         }, emailFieldSelector);
 
-        // Add a delay to ensure the field is ready
+        // Add a short delay to ensure focus
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Clear the email input field
@@ -113,7 +116,7 @@ puppeteer.use(StealthPlugin());
         });
         console.log('Selected Transactions & Invoices from dropdown.');
 
-        // Step 9: Press "Download invoices"
+        // Step 9: Wait for the Transactions and Invoices page to load and press "Download invoices"
         const downloadInvoicesSelector = 'button[data-qa="download-invoices"]';
         await page.waitForSelector(downloadInvoicesSelector, { timeout: 60000, visible: true });
         await new Promise(resolve => setTimeout(resolve, 2000)); // Add a delay to ensure any transitions are complete
