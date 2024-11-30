@@ -8,7 +8,7 @@ puppeteer.use(StealthPlugin());
 (async () => {
     const browser = await puppeteer.launch({
         headless: false,
-        devtools: false, // Disable devtools to avoid the inspect window opening
+        devtools: false,
         executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Adjust path if needed
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1200,800'],
     });
@@ -34,6 +34,18 @@ puppeteer.use(StealthPlugin());
         const emailFieldSelector = '#login_username';
         await page.waitForSelector(emailFieldSelector, { timeout: 60000, visible: true });
 
+        // Ensure the email input field is in the viewport
+        await page.evaluate((selector) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.focus(); // Explicitly focus on the element
+            }
+        }, emailFieldSelector);
+
+        // Add a delay to ensure the field is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Clear the email input field
         await page.click(emailFieldSelector);
         await page.keyboard.press('End');
@@ -42,8 +54,11 @@ puppeteer.use(StealthPlugin());
         await page.keyboard.up('Shift');
         await page.keyboard.press('Backspace');
 
-        // Type the email with moderate delay
-        await page.type(emailFieldSelector, '**yourEmail', { delay: 1000 }); // Replace with your email
+        // Add a short delay after clearing
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Type the email with a moderate delay
+        await page.type(emailFieldSelector, 'yourmail', { delay: 150 }); // Replace with your email
         console.log('Entered email.');
 
         // Step 4: Press "Continue" button
@@ -65,8 +80,11 @@ puppeteer.use(StealthPlugin());
         await page.keyboard.up('Shift');
         await page.keyboard.press('Backspace');
 
+        // Add a short delay after clearing
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Type the password with moderate delay
-        await page.type(passwordFieldSelector, 'yourPass', { delay: 1000 }); // Replace with your password
+        await page.type(passwordFieldSelector, 'yourpass', { delay: 150 }); // Replace with your password
         console.log('Entered password.');
 
         // Step 6: Press "Log in" button
